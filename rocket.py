@@ -5,13 +5,17 @@ Stage = namedtuple('Stage', ['start_mass_tons', 'end_mass_tons', 'thrust_kns', '
 
 # ---------- rocket parameters --------------
 
-payload_mass_tons = 1.0
-rocket_cost = 33000
+qualification_soi_exit_delta_v = None   # set this to "None" if you want to simulate
+payload_mass_tons = 20.0
+rocket_cost = 71993
 
+# Read these stage stats out of mechjeb, but be sure to pick the vacuum ISP for the final
+# stage as this will determine the final delta V estimate
+#         start mass             end mass            max thrust       ISP      time
 stages = [
-    Stage(start_mass_tons=81.4, end_mass_tons=49.4, thrust_kns=2000, isp=280, burn_time=47),
-    Stage(start_mass_tons=38.75, end_mass_tons=6.75, thrust_kns=250, isp=350, burn_time=7*60+20),
-]
+    Stage(start_mass_tons=59.00, end_mass_tons=27.0, thrust_kns=650,  isp=320, burn_time=120+34),
+    Stage(start_mass_tons=212.5,  end_mass_tons=89.5, thrust_kns=4000, isp=295, burn_time=60+35),
+][::-1]
 
 # ---------- simulation constants & helpers ----------
 
@@ -33,14 +37,20 @@ def reaches_exit_soi(cvel, calt):
         coast += 1
     return (calt > soi_exit_alt, calt, coast)
             
-print(f'Gravity at sea level = {gravity_at_alt(0):.2f} m/s^2')
-
 # ----------- simulation ------------
 
 def simulate(stages):
     alt = 0
     vel = 0
     scale = 10
+
+    tot_burn_time = sum(s.burn_time for s in stages)
+    if tot_burn_time > 60*5:
+        print(f'WARNING!!! THIS ROCKET WILL TAKE UP TO {tot_burn_time} SEC TO FLY QUALIFICATION FLIGHT')
+        print('            YOU MAY RUN OUT OF TIME TO QUALIFY IT')
+        input('Press RETURN to fly or CTRL+C to abort\n')
+
+    print(f'Gravity at sea level = {gravity_at_alt(0):.2f} m/s^2')
 
     for sno in range(len(stages)):
         s = stages[sno]
@@ -76,33 +86,39 @@ def simulate(stages):
             print(f'Height reached: {alt/1000:.0f}km')
             return None
 
-soi_exit_delta_v = simulate(stages)
-
-cost_per_kilo = payload_mass_tons * 1000 / rocket_cost
-cost_per_unit_dv = soi_exit_delta_v / rocket_cost
+soi_exit_delta_v = qualification_soi_exit_delta_v or simulate(stages)
 
 # ------------------ scoring ---------------
 
 if soi_exit_delta_v is not None:
+    cost_per_kilo = rocket_cost / (payload_mass_tons * 1000)
+    cost_per_unit_dv = rocket_cost / soi_exit_delta_v
+
+    points_absolute_payload = min(float(payload_mass_tons) / 50, 1)
+    points_absolute_dv = min(soi_exit_delta_v / 10000, 1)
+    points_cost_per_kilo = 1 - min(cost_per_kilo / 20.0, 1)
+    points_cost_per_unit_dv = 1 - min(cost_per_unit_dv / 50.0, 1)
+
     print('\n======== SCORING =========\n')
-    print(f'Total Rocket cost: ${rocket_cost}')
-    print(f'Cost / kg: ${cost_per_kilo:.4f}')
-    print(f'Cost / unit DV: ${cost_per_unit_dv:.4f}')
-    print(f'Available DV: {soi_exit_delta_v:.0f} m/s')
+    print(f'Total payload mass : {payload_mass_tons:5.1f} tons    / 50t   = {points_absolute_payload:.2f} pts')
+    print(f'Available DV       : {soi_exit_delta_v:5.0f} m/s     / 10K   = {points_absolute_dv:.2f} pts')
+    print(f'Cost / kg          : {cost_per_kilo:5.2f} $       / 20    = {points_cost_per_kilo:.2f} pts')
+    print(f'Cost / unit DV     : {cost_per_unit_dv:5.2f} $       / 50    = {points_cost_per_unit_dv:.2f} pts')
 
-    points_absolute_cost = 1 - (rocket_cost / 200000)
-    points_absolute_dv = soi_exit_delta_v / 10000
-    points_cost_per_kilo = cost_per_kilo / 2.0
-    points_cost_per_unit_dv = cost_per_unit_dv / 2.0
 
-    weight_absolute_cost = 0.25
+    weight_absolute_payload = 0.25
     weight_absolute_dv = 0.25
     weight_cost_per_kilo = 0.25
     weight_cost_per_unit_dv = 0.25
 
-    final_score = points_absolute_cost * weight_absolute_cost + \
+    final_score = points_absolute_payload * weight_absolute_payload + \
                 points_absolute_dv * weight_absolute_dv + \
                 points_cost_per_kilo * weight_cost_per_kilo + \
                 points_cost_per_unit_dv * weight_cost_per_unit_dv
 
-    print(f'FINAL SCORE = {final_score:.2f}')
+    print('\nWEIGHTINGS')
+    print(f'   payload_mass     {weight_absolute_payload*100:4.0f}%')
+    print(f'   absolute_dv      {weight_absolute_payload*100:4.0f}%')
+    print(f'   cost_per_kilo    {weight_absolute_payload*100:4.0f}%')
+    print(f'   cost_per_unit_dv {weight_absolute_payload*100:4.0f}%')
+    print(f'\nFINAL SCORE = {final_score:.2f}')
