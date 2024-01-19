@@ -6,15 +6,16 @@ Stage = namedtuple('Stage', ['start_mass_tons', 'end_mass_tons', 'thrust_kns', '
 # ---------- rocket parameters --------------
 
 qualification_soi_exit_delta_v = None   # set this to "None" if you want to simulate
-payload_mass_tons = 20.0
-rocket_cost = 71993
+payload_mass_tons = 1
+rocket_cost = 4151
 
 # Read these stage stats out of mechjeb, but be sure to pick the vacuum ISP for the final
 # stage as this will determine the final delta V estimate
 #         start mass             end mass            max thrust       ISP      time
 stages = [
-    Stage(start_mass_tons=59.00, end_mass_tons=27.0, thrust_kns=650,  isp=320, burn_time=120+34),
-    Stage(start_mass_tons=212.5,  end_mass_tons=89.5, thrust_kns=4000, isp=295, burn_time=60+35),
+    Stage(start_mass_tons=1.580, end_mass_tons=1.180, thrust_kns=20,  isp=320, burn_time=62),
+    Stage(start_mass_tons=3.070, end_mass_tons=1.870, thrust_kns=20,  isp=320, burn_time=188),
+    Stage(start_mass_tons=27.080,  end_mass_tons=7.580, thrust_kns=670, isp=195, burn_time=62)
 ]
 
 # ---------- simulation constants & helpers ----------
@@ -73,12 +74,17 @@ def simulate(stages):
             twr = thrust / (mass * galt)
             mass -= mass_step
             if x % 100 == 0 or x == (s.burn_time*scale-1): print(f'{x/10:03.1f}s  {alt:6.0f}  {vel:6.2f}    {twr:.2f}')
-            if x % 10 == 0 and is_last_stage:
+            if x % 10 == 0:
                 if reaches_exit_soi(vel, alt)[0]:
                     print(f'Reached velocity to coast to SOI exit with burn time {x/scale:.1f}s')
                     print(f'Remaining mass = {mass:.0f}kg ; Dry mass = {(end_mass):.0f}kg')
-                    delta_v = s.isp * 9.8 * log(mass / end_mass)
-                    print(f'Remaining Delta V at SOI exit = {delta_v:.0f} m/s')
+                    def delta_v_calc(isp, mwet, mdry):
+                        return isp * 9.8 * log(mwet/mdry)
+                    
+                    delta_v = delta_v_calc(s.isp, mass, end_mass)
+                    delta_v += sum(delta_v_calc(st.isp, st.start_mass_tons, st.end_mass_tons) for st in stages[sno+1:])
+
+                    print(f'Remaining Delta V at SOI exit = {delta_v:.0f} m/s')                    
                     return delta_v
 
         if is_last_stage:
@@ -95,14 +101,14 @@ if soi_exit_delta_v is not None:
     cost_per_kilo = rocket_cost / (payload_mass_tons * 1000)
     cost_per_unit_dv = rocket_cost / soi_exit_delta_v
 
-    points_absolute_payload = min(float(payload_mass_tons) / 50, 1)
-    points_absolute_dv = min(soi_exit_delta_v / 10000, 1)
+    points_absolute_payload = min(float(payload_mass_tons) / 25, 1)
+    points_absolute_dv = min(soi_exit_delta_v / 5000, 1)
     points_cost_per_kilo = 1 - min(cost_per_kilo / 20.0, 1)
     points_cost_per_unit_dv = 1 - min(cost_per_unit_dv / 50.0, 1)
 
     print('\n======== SCORING =========\n')
-    print(f'Total payload mass : {payload_mass_tons:5.1f} tons    / 50t   = {points_absolute_payload:.2f} pts')
-    print(f'Available DV       : {soi_exit_delta_v:5.0f} m/s     / 10K   = {points_absolute_dv:.2f} pts')
+    print(f'Total payload mass : {payload_mass_tons:5.1f} tons    / 25t   = {points_absolute_payload:.2f} pts')
+    print(f'Available DV       : {soi_exit_delta_v:5.0f} m/s     / 5K    = {points_absolute_dv:.2f} pts')
     print(f'Cost / kg          : {cost_per_kilo:5.2f} $       / 20    = {points_cost_per_kilo:.2f} pts')
     print(f'Cost / unit DV     : {cost_per_unit_dv:5.2f} $       / 50    = {points_cost_per_unit_dv:.2f} pts')
 
