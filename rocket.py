@@ -15,10 +15,11 @@ rocket_cost = 71993
 stages = [
     Stage(start_mass_tons=59.00, end_mass_tons=27.0, thrust_kns=650,  isp=320, burn_time=120+34),
     Stage(start_mass_tons=212.5,  end_mass_tons=89.5, thrust_kns=4000, isp=295, burn_time=60+35),
-][::-1]
+]
 
 # ---------- simulation constants & helpers ----------
 
+stages = stages[::-1]
 kerbin_radius = 600 * 1000
 kerbin_mass = 5.29e22   #Kg
 G = 6.67e-11
