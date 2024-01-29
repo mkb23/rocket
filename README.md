@@ -24,9 +24,53 @@ and can be configured to have any diameter and weight that you want.
 1. Click "Toggle NRAP window" to view the configuration menu (left-most in picture)
 1. Choose your mass, and diameter. Then click "Apply", then "Close"
 
-## Parameters
+## Flying and scoring a rocket
 
-Design your rocket in KSP and click the "Delta-V Stats" button from the MechJeb menu
+You can fly your rocket and calculate the scores using `rocket.py`. Here's the bits you need to edit:
+
+```python
+# ---------- rocket parameters --------------
+
+# read these out from KSP
+soi_exit_delta_v = None  # set this to "None" if you want to simulate
+payload_mass_tons = 0.5
+rocket_cost = 50000
+
+<snip>
+
+# ----------- scoring weights ... how important is each parameter?
+weights = Weights(
+    absolute_payload=0.25,
+    absolute_dv=0.25,
+    cost_per_kilo=0.25,
+    cost_per_unit_dv=0.25)
+```
+
+Just fill out `soi_exit_delta_v`, `payload_mass_tons`, and `rocket_cost`. Then set the weights
+to get your score:
+
+```buildoutcfg
+======== SCORING =========
+
+Total payload mass :  20.0 tons    / 50t   = 0.40 pts
+Available DV       :   784 m/s     / 10K   = 0.08 pts
+Cost / kg          :  3.60 $       / 20    = 0.82 pts
+Cost / unit DV     : 91.84 $       / 50    = 0.00 pts
+
+WEIGHTINGS
+   payload_mass       25%
+   absolute_dv        25%
+   cost_per_kilo      25%
+   cost_per_unit_dv   25%
+
+FINAL SCORE = 0.32
+```
+
+## Simulating a rocket flight
+
+If you want to iterate faster without test flying every time, set your `soi_exit_delta_v` to 0 and then fill out
+per stage information to use in the simulation. First design your rocket in KSP and click the "Delta-V Stats"
+button from the MechJeb menu
 
 ![mbutton](mechjeb-button.jpg)
 
@@ -37,19 +81,19 @@ You can now use the MechJeb Delta-V Stats pane that looks like this to find your
 If you can't see all the columns you need, toggle the rightmost button "Short stats/Long stats/Full stats/custom". You'll need to read these figures and plug in them into the `rocket.py`  script as follows:
 
 ```python
-# ---------- rocket parameters --------------
+if soi_exit_delta_v is None:
+    # ----------- simulation parameters
 
-qualification_soi_exit_delta_v = None   # set this to "None" if you want to simulate
-payload_mass_tons = 20.0
-rocket_cost = 71993
-
-# Read these stage stats out of mechjeb, but be sure to pick the vacuum ISP for the final
-# stage as this will determine the final delta V estimate
-#         start mass             end mass            max thrust       ISP      time
-stages = [
-    Stage(start_mass_tons=59.00, end_mass_tons=27.0, thrust_kns=650,  isp=320, burn_time=120+34),
-    Stage(start_mass_tons=212.5,  end_mass_tons=89.5, thrust_kns=4000, isp=295, burn_time=60+35),
-]
+    # Read these stage stats out of mechjeb, but be sure to pick the vacuum ISP for the final
+    # stage as this will determine the final delta V estimate. You don't need these if
+    # you are just calculating the scores from your run
+    #         start mass             end mass            max thrust       ISP      time
+    stages = [
+        Stage(start_mass_tons=3, end_mass_tons=2, thrust_kns=20, isp=320, burn_time=100),
+        Stage(start_mass_tons=20, end_mass_tons=5, thrust_kns=670, isp=280, burn_time=20),
+        Stage(start_mass_tons=80, end_mass_tons=25, thrust_kns=2500, isp=195, burn_time=40)
+    ]
+    soi_exit_delta_v = simulate(stages)
 ```
 
 The simulation assumes you'll fly directly upwards, full throttle, and staging as fast as possible until you achieve a velocity that puts your apoapsis above 86,000km, which is
@@ -92,21 +136,7 @@ Reached velocity to coast to SOI exit with burn time 117.0s
 Remaining mass = 34668kg ; Dry mass = 27000kg        
 Remaining Delta V at SOI exit = 784 m/s
 
-======== SCORING =========
-
-Total payload mass :  20.0 tons    / 50t   = 0.40 pts
-Available DV       :   784 m/s     / 10K   = 0.08 pts
-Cost / kg          :  3.60 $       / 20    = 0.82 pts
-Cost / unit DV     : 91.84 $       / 50    = 0.00 pts
-
-WEIGHTINGS
-   payload_mass       25%
-   absolute_dv        25%
-   cost_per_kilo      25%
-   cost_per_unit_dv   25%
-
-FINAL SCORE = 0.32
-PS G:\Users\mkb23\Code\rocket> 
+(it will then print out your final score)
 ```
 
 ## Planning versus Qualifying
@@ -120,7 +150,7 @@ will run a simulation to estimate this. The simulation is usually a bit optimist
 ```python
 # ---------- rocket parameters --------------
 
-qualification_soi_exit_delta_v = None  
+soi_exit_delta_v = None  # set this to "None" if you want to simulate  
 ```
 
 When you are ready measure your actual delta V and plug it in, and it will skip the simulation
