@@ -6,16 +6,16 @@ Stage = namedtuple('Stage', ['start_mass_tons', 'end_mass_tons', 'thrust_kns', '
 # ---------- rocket parameters --------------
 
 qualification_soi_exit_delta_v = None   # set this to "None" if you want to simulate
-payload_mass_tons = 1
-rocket_cost = 4151
+payload_mass_tons = 0.5
+rocket_cost = 50000
 
 # Read these stage stats out of mechjeb, but be sure to pick the vacuum ISP for the final
 # stage as this will determine the final delta V estimate
 #         start mass             end mass            max thrust       ISP      time
 stages = [
-    Stage(start_mass_tons=1.580, end_mass_tons=1.180, thrust_kns=20,  isp=320, burn_time=62),
-    Stage(start_mass_tons=3.070, end_mass_tons=1.870, thrust_kns=20,  isp=320, burn_time=188),
-    Stage(start_mass_tons=27.080,  end_mass_tons=7.580, thrust_kns=670, isp=195, burn_time=62)
+    Stage(start_mass_tons=3, end_mass_tons=2, thrust_kns=20,  isp=320, burn_time=100),
+    Stage(start_mass_tons=20, end_mass_tons=5, thrust_kns=670,  isp=280, burn_time=20),
+    Stage(start_mass_tons=80,  end_mass_tons=25, thrust_kns=2500, isp=195, burn_time=40)
 ]
 
 # ---------- simulation constants & helpers ----------
